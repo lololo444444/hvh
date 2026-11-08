@@ -1,21 +1,25 @@
---// kotik_hub v20 (Key System + Icon + Menu BG)
+--// kotik_hub v21 (optimized)
+--// Key System + Flying Chinese + Smiley Icon
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 local FILE = "kotik_hub.json"
 local IMAGE_FILE = "kotik.png"
-local ICON_FILE = "icon.png"
-local MENU_BG_FILE = "menu.png"
 local IMAGE_ID = ""
 local MENU_KEY = Enum.KeyCode.RightShift
+local CHINESE_CHARS = {"龙","虎","猫","狗","水","火","木","金","土","风","雨","云","山","海","星","月","日","光","暗","心","力","剑","刀","弓","箭","血","魂","神","魔","道"}
 
---// ============ KEY SYSTEM ============
+--// ============================================
+--// KEY SYSTEM (оптимизированная)
+--// ============================================
 local keyGui = Instance.new("ScreenGui")
 keyGui.Name = "kotik_key"
 keyGui.ResetOnSpawn = false
@@ -27,24 +31,46 @@ keyGui.Parent = (gethui and gethui()) or game:GetService("CoreGui")
 local keyBg = Instance.new("Frame")
 keyBg.Size = UDim2.new(0, 400, 0, 400)
 keyBg.Position = UDim2.new(0.5, -200, 0.5, -200)
-keyBg.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+keyBg.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 keyBg.BorderSizePixel = 0
+keyBg.ClipsDescendants = true
 keyBg.Parent = keyGui
-local keyBgCorner = Instance.new("UICorner")
-keyBgCorner.CornerRadius = UDim.new(0, 12)
-keyBgCorner.Parent = keyBg
+Instance.new("UICorner", keyBg).CornerRadius = UDim.new(0, 12)
 
--- фон key-меню (menu.png)
-pcall(function()
-    if getcustomasset and isfile and isfile(MENU_BG_FILE) then
-        local bgImg = Instance.new("ImageLabel")
-        bgImg.Size = UDim2.new(1, 0, 1, 0)
-        bgImg.BackgroundTransparency = 1
-        bgImg.ScaleType = Enum.ScaleType.Crop
-        bgImg.Image = getcustomasset(MENU_BG_FILE)
-        bgImg.ImageTransparency = 0.3
-        bgImg.ZIndex = 0
-        bgImg.Parent = keyBg
+-- летающие китайские символы (key)
+local keyFloating = {}
+local keyFloatConn
+local function spawnKeyChar()
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0, 30, 0, 30)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = CHINESE_CHARS[math.random(#CHINESE_CHARS)]
+    lbl.TextColor3 = Color3.fromRGB(80, 255, 120)
+    lbl.TextTransparency = 0.65
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = math.random(14, 28)
+    lbl.Position = UDim2.new(math.random(), 0, 1.1, 0)
+    lbl.ZIndex = 0
+    lbl.Parent = keyBg
+    keyFloating[#keyFloating + 1] = {label = lbl, speed = math.random(8, 20) / 100}
+end
+for i = 1, 12 do spawnKeyChar() end
+keyFloatConn = RunService.RenderStepped:Connect(function(dt)
+    for i = #keyFloating, 1, -1 do
+        local d = keyFloating[i]
+        local lbl = d.label
+        if not lbl.Parent then
+            table.remove(keyFloating, i)
+        else
+            local y = lbl.Position.Y.Scale - d.speed * dt
+            if y < -0.1 then
+                lbl.Position = UDim2.new(math.random(), 0, 1.1, 0)
+                lbl.Text = CHINESE_CHARS[math.random(#CHINESE_CHARS)]
+                lbl.TextSize = math.random(14, 28)
+            else
+                lbl.Position = UDim2.new(lbl.Position.X.Scale, 0, y, 0)
+            end
+        end
     end
 end)
 
@@ -64,7 +90,7 @@ keySub.Size = UDim2.new(1, 0, 0, 20)
 keySub.Position = UDim2.new(0, 0, 0, 55)
 keySub.BackgroundTransparency = 1
 keySub.Text = "Перетащи числа от меньшего к большему"
-keySub.TextColor3 = Color3.fromRGB(200, 200, 200)
+keySub.TextColor3 = Color3.fromRGB(180, 180, 180)
 keySub.Font = Enum.Font.Gotham
 keySub.TextSize = 13
 keySub.ZIndex = 2
@@ -76,15 +102,13 @@ for i = 1, 3 do
     local slot = Instance.new("Frame")
     slot.Size = UDim2.new(0, 90, 0, 90)
     slot.Position = UDim2.new(0.5, -145 + (i - 1) * 100, 0.5, -45)
-    slot.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    slot.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
     slot.BorderSizePixel = 0
     slot.ZIndex = 2
     slot.Parent = keyBg
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 10)
-    c.Parent = slot
+    Instance.new("UICorner", slot).CornerRadius = UDim.new(0, 10)
     local s = Instance.new("UIStroke")
-    s.Color = Color3.fromRGB(100, 100, 100)
+    s.Color = Color3.fromRGB(80, 80, 80)
     s.Thickness = 2
     s.Parent = slot
     keySlots[i] = slot
@@ -104,6 +128,7 @@ local function generateKey()
 end
 
 local keyNums = generateKey()
+local keySquares = {}
 
 local function createKeySquare(value, startX, startY)
     local sq = Instance.new("TextButton")
@@ -117,28 +142,25 @@ local function createKeySquare(value, startX, startY)
     sq.TextSize = 32
     sq.ZIndex = 3
     sq.Parent = keyBg
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 10)
-    c.Parent = sq
+    Instance.new("UICorner", sq).CornerRadius = UDim.new(0, 10)
     local s = Instance.new("UIStroke")
     s.Color = Color3.fromRGB(80, 255, 120)
     s.Thickness = 2
     s.Parent = sq
+    keySquares[#keySquares + 1] = sq
 
     local val = value
     local dragging = false
     local dragOffset = Vector2.new(0, 0)
     local slotIndex = nil
+    local startPos = Vector2.new(startX, startY)
 
     local function getSlotUnder(pos)
         for i, slot in ipairs(keySlots) do
-            local ap = slot.AbsolutePosition
-            local asz = slot.AbsoluteSize
+            local ap, asz = slot.AbsolutePosition, slot.AbsoluteSize
             local bgp = keyBg.AbsolutePosition
-            local relX = pos.X - bgp.X
-            local relY = pos.Y - bgp.Y
-            local sx = ap.X - bgp.X
-            local sy = ap.Y - bgp.Y
+            local relX, relY = pos.X - bgp.X, pos.Y - bgp.Y
+            local sx, sy = ap.X - bgp.X, ap.Y - bgp.Y
             if relX >= sx and relX <= sx + asz.X and relY >= sy and relY <= sy + asz.Y then
                 return i
             end
@@ -168,17 +190,14 @@ local function createKeySquare(value, startX, startY)
     UIS.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local mp = input.Position
-            local newX = mp.X - keyBg.AbsolutePosition.X - dragOffset.X
-            local newY = mp.Y - keyBg.AbsolutePosition.Y - dragOffset.Y
-            sq.Position = UDim2.new(0, newX, 0, newY)
+            sq.Position = UDim2.new(0, mp.X - keyBg.AbsolutePosition.X - dragOffset.X, 0, mp.Y - keyBg.AbsolutePosition.Y - dragOffset.Y)
         end
     end)
 
     UIS.InputEnded:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
             dragging = false
-            local mp = input.Position
-            local idx = getSlotUnder(mp)
+            local idx = getSlotUnder(input.Position)
             if idx and not slotOrder[idx] then
                 slotOrder[idx] = val
                 slotIndex = idx
@@ -190,9 +209,14 @@ local function createKeySquare(value, startX, startY)
                 if checkCorrect() then
                     keyTitle.Text = "✓ ВЕРНО! Загрузка..."
                     keyTitle.TextColor3 = Color3.fromRGB(80, 255, 120)
-                    task.wait(0.8)
-                    keyGui:Destroy()
+                    task.delay(0.6, function()
+                        if keyFloatConn then keyFloatConn:Disconnect() end
+                        keyGui:Destroy()
+                    end)
                 end
+            else
+                -- возврат на исходную позицию
+                TweenService:Create(sq, TweenInfo.new(0.15), {Position = UDim2.new(0, startPos.X, 0, startPos.Y)}):Play()
             end
         end
     end)
@@ -205,7 +229,7 @@ end
 local shuffleBtn = Instance.new("TextButton")
 shuffleBtn.Size = UDim2.new(0, 150, 0, 30)
 shuffleBtn.Position = UDim2.new(0.5, -75, 1, -40)
-shuffleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+shuffleBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 shuffleBtn.Text = "Другая комбинация"
 shuffleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 shuffleBtn.Font = Enum.Font.Gotham
@@ -213,17 +237,15 @@ shuffleBtn.TextSize = 12
 shuffleBtn.BorderSizePixel = 0
 shuffleBtn.ZIndex = 3
 shuffleBtn.Parent = keyBg
-local sc = Instance.new("UICorner")
-sc.CornerRadius = UDim.new(0, 6)
-sc.Parent = shuffleBtn
+Instance.new("UICorner", shuffleBtn).CornerRadius = UDim.new(0, 6)
 shuffleBtn.MouseButton1Click:Connect(function()
-    keyGui:Destroy()
-    -- Перезапускаем скрипт
-    local url = "https://raw.githubusercontent.com/lololo444444/hvh/refs/heads/main/kotik_hub.lua"
-    local ok, src = pcall(game.HttpGet, game, url)
-    if ok and src then
-        local fn = loadstring(src)
-        if fn then fn() end
+    -- локальная перегенерация без перезагрузки
+    for _, sq in ipairs(keySquares) do sq:Destroy() end
+    keySquares = {}
+    slotOrder = {}
+    keyNums = generateKey()
+    for i, v in ipairs(keyNums) do
+        createKeySquare(v, 40 + (i - 1) * 110, 280)
     end
 end)
 
@@ -232,7 +254,9 @@ while keyGui.Parent do
     task.wait(0.1)
 end
 
---// ============ НАСТРОЙКИ ============
+--// ============================================
+--// НАСТРОЙКИ
+--// ============================================
 local DEFAULTS = {
     esp = false, espBox = false, espName = false, espTracer = false, espDist = false, espTeam = false,
     espRainbow = false, espRainSpeed = 3,
@@ -259,12 +283,10 @@ local DEFAULTS = {
     savedX = 0, savedY = 0, savedZ = 0, tpToPoint = false,
     musicOn = false, musicId = "1837879082", musicVol = 5, musicLoop = true,
     musicSpeed = 1, musicPitch = 1, musicLocal = true,
-    accRecolor = false, accR = 255, accG = 0, accB = 255, accMat = 1, accNeon = false,
+    accRecolor = false, accR = 255, accG = 0, accB = 255, accNeon = false,
     bodyRecolor = false, bodyR = 0, bodyG = 255, bodyB = 255,
-    shiftLock = false, shiftLockAngle = 90, shiftLockMode = 1,
-    shiftLockSmooth = 1,
-    hvhOn = false, hvhMode = 1,
-    hvhRange = 50, hvhSmooth = 1,
+    shiftLock = false, shiftLockAngle = 90, shiftLockMode = 1, shiftLockSmooth = 1,
+    hvhOn = false, hvhMode = 1, hvhRange = 50, hvhSmooth = 1,
     menuOpen = true, tab = 1,
 }
 
@@ -305,11 +327,11 @@ end
 --// ============ ОБЩЕЕ ============
 local function getChar() return LocalPlayer.Character end
 local function getHum()
-    local c = getChar()
+    local c = LocalPlayer.Character
     return c and c:FindFirstChildOfClass("Humanoid")
 end
 local function getHRP()
-    local c = getChar()
+    local c = LocalPlayer.Character
     return c and c:FindFirstChild("HumanoidRootPart")
 end
 
@@ -371,12 +393,7 @@ end
 local function tpOffset(x, y, z, world)
     local hrp = prepTp()
     if not hrp then return false end
-    local cf
-    if world then
-        cf = hrp.CFrame + Vector3.new(x, y, z)
-    else
-        cf = hrp.CFrame * CFrame.new(x, y, z)
-    end
+    local cf = world and (hrp.CFrame + Vector3.new(x, y, z)) or (hrp.CFrame * CFrame.new(x, y, z))
     teleportTo(cf)
     return true
 end
@@ -476,48 +493,72 @@ main.Position = UDim2.new(0, 76, 0.5, -200)
 main.BackgroundColor3 = C_BG
 main.BorderSizePixel = 0
 main.Visible = cfg.menuOpen
+main.ClipsDescendants = true
 main.Parent = gui
 corner(main, 8)
 stroke(main)
 
--- фон меню (menu.png)
-local menuBgImg = Instance.new("ImageLabel")
-menuBgImg.Size = UDim2.new(1, 0, 1, 0)
-menuBgImg.BackgroundTransparency = 1
-menuBgImg.BorderSizePixel = 0
-menuBgImg.ScaleType = Enum.ScaleType.Crop
-menuBgImg.ZIndex = 0
-menuBgImg.Parent = main
-pcall(function()
-    if getcustomasset and isfile and isfile(MENU_BG_FILE) then
-        menuBgImg.Image = getcustomasset(MENU_BG_FILE)
-        menuBgImg.ImageTransparency = 0.55
+-- летающие китайские символы в основном меню
+local menuFloating = {}
+local menuFloatConn
+local function spawnMenuChar()
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0, 26, 0, 26)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = CHINESE_CHARS[math.random(#CHINESE_CHARS)]
+    lbl.TextColor3 = Color3.fromRGB(80, 255, 120)
+    lbl.TextTransparency = 0.8
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = math.random(12, 22)
+    lbl.Position = UDim2.new(math.random(), 0, 1.1, 0)
+    lbl.ZIndex = 0
+    lbl.Parent = main
+    menuFloating[#menuFloating + 1] = {label = lbl, speed = math.random(6, 15) / 100}
+end
+for i = 1, 8 do spawnMenuChar() end
+menuFloatConn = RunService.RenderStepped:Connect(function(dt)
+    if not main.Visible then return end
+    for i = #menuFloating, 1, -1 do
+        local d = menuFloating[i]
+        local lbl = d.label
+        if not lbl.Parent then
+            table.remove(menuFloating, i)
+        else
+            local y = lbl.Position.Y.Scale - d.speed * dt
+            if y < -0.1 then
+                lbl.Position = UDim2.new(math.random(), 0, 1.1, 0)
+                lbl.Text = CHINESE_CHARS[math.random(#CHINESE_CHARS)]
+            else
+                lbl.Position = UDim2.new(lbl.Position.X.Scale, 0, y, 0)
+            end
+        end
     end
 end)
+
+-- иконка-улыбашка
+local headerIcon = Instance.new("TextLabel")
+headerIcon.Size = UDim2.new(0, 24, 0, 24)
+headerIcon.Position = UDim2.new(0, 6, 0, 4)
+headerIcon.BackgroundColor3 = C_GREEN
+headerIcon.Text = "☺"
+headerIcon.TextColor3 = Color3.fromRGB(0, 0, 0)
+headerIcon.Font = Enum.Font.GothamBold
+headerIcon.TextSize = 20
+headerIcon.BorderSizePixel = 0
+headerIcon.ZIndex = 2
+headerIcon.Parent = main
+corner(headerIcon, 12)
 
 local header = Instance.new("TextLabel")
 header.Size = UDim2.new(1, -40, 0, 32)
 header.Position = UDim2.new(0, 32, 0, 0)
 header.BackgroundTransparency = 1
-header.Text = "kotik_hub  v20"
+header.Text = "kotik_hub  v21"
 header.TextColor3 = C_WHITE
 header.Font = Enum.Font.GothamBold
 header.TextSize = 16
 header.ZIndex = 2
 header.Parent = main
-
--- иконка в заголовке
-local headerIcon = Instance.new("ImageLabel")
-headerIcon.Size = UDim2.new(0, 24, 0, 24)
-headerIcon.Position = UDim2.new(0, 6, 0, 4)
-headerIcon.BackgroundTransparency = 1
-headerIcon.ZIndex = 2
-headerIcon.Parent = main
-pcall(function()
-    if getcustomasset and isfile and isfile(ICON_FILE) then
-        headerIcon.Image = getcustomasset(ICON_FILE)
-    end
-end)
 
 local function setMenu(v)
     main.Visible = v
@@ -682,9 +723,7 @@ local function addSlider(page, text, key, min, max)
 
     bind(box.FocusLost, function()
         local n = tonumber((box.Text:gsub(",", ".")))
-        if n then
-            cfg[key] = math.clamp(math.floor(n + 0.5), min, max)
-        end
+        if n then cfg[key] = math.clamp(math.floor(n + 0.5), min, max) end
         box.Text = tostring(cfg[key])
         save()
     end)
@@ -728,7 +767,6 @@ local function addTextInput(page, text, key, placeholder)
     stroke(box)
 
     uiRefresh[#uiRefresh + 1] = function() box.Text = tostring(cfg[key]) end
-
     bind(box.FocusLost, function()
         cfg[key] = box.Text
         save()
@@ -803,7 +841,7 @@ local function flash(btn, msg)
     end)
 end
 
---// ---- Вкладка 1: Визуал ----
+--// ---- Вкладки ----
 addLabel(pages[1], "— ESP —")
 addToggle(pages[1], "ESP скелет", "esp")
 addToggle(pages[1], "ESP коробка", "espBox")
@@ -818,41 +856,30 @@ addSlider(pages[1], "Цвет ESP: зелёный", "espG", 0, 255)
 addSlider(pages[1], "Цвет ESP: синий", "espB", 0, 255)
 addSlider(pages[1], "Толщина скелета", "espThick", 1, 8)
 addSlider(pages[1], "Толщина коробки", "boxThick", 1, 8)
-
 addLabel(pages[1], "— Камера и свет —")
-addToggle(pages[1], "FOV", "fovOn", function(on)
-    if not on then Camera.FieldOfView = 70 end
-end)
+addToggle(pages[1], "FOV", "fovOn", function(on) if not on then Camera.FieldOfView = 70 end end)
 addSlider(pages[1], "Угол обзора", "fov", 30, 120)
 addToggle(pages[1], "Fullbright", "fullbright")
 addToggle(pages[1], "Своё время суток", "clockTime")
 addSlider(pages[1], "Час (0-24)", "timeValue", 0, 24)
 addToggle(pages[1], "Убрать туман", "fogOff")
-addToggle(pages[1], "FPS Boost (декор/тени)", "fpsBoost")
+addToggle(pages[1], "FPS Boost", "fpsBoost")
 
---// ---- Вкладка 2: Игрок ----
 addToggle(pages[2], "Скорость", "speedOn", function(on)
-    local h = getHum()
-    if h and not on then h.WalkSpeed = 16 end
+    local h = getHum() if h and not on then h.WalkSpeed = 16 end
 end)
 addSlider(pages[2], "Скорость ходьбы", "speed", 16, 200)
 addToggle(pages[2], "Прыжок", "jumpOn", function(on)
-    local h = getHum()
-    if h and not on then h.UseJumpPower = true h.JumpPower = 50 end
+    local h = getHum() if h and not on then h.UseJumpPower = true h.JumpPower = 50 end
 end)
 addSlider(pages[2], "Сила прыжка", "jump", 50, 300)
 addToggle(pages[2], "Без анимаций", "noAnim", function(on)
-    local c = getChar()
-    local a = c and c:FindFirstChild("Animate")
+    local c = getChar() local a = c and c:FindFirstChild("Animate")
     if a and not on then a.Disabled = false end
 end)
 addToggle(pages[2], "Мгновенный респавн", "fastRespawn", function(on)
-    if on then
-        local h = getHum()
-        if h then pcall(function() h:ChangeState(Enum.HumanoidStateType.Dead) end) end
-    end
+    if on then local h = getHum() if h then pcall(function() h:ChangeState(Enum.HumanoidStateType.Dead) end) end end
 end)
-
 addLabel(pages[2], "— Спин —")
 addToggle(pages[2], "Спин", "spin", function(on)
     if not on then
@@ -861,41 +888,29 @@ addToggle(pages[2], "Спин", "spin", function(on)
         if h then h.AutoRotate = true end
     end
 end)
-addSelector(pages[2], "Ось спины", "spinMode",
-    {"Y (горизонт)", "X (кувырок вперёд)", "Z (кувырок в бок)"})
+addSelector(pages[2], "Ось", "spinMode", {"Y", "X", "Z"})
 addSlider(pages[2], "Скорость спина (об/сек)", "spinSpeed", 1, 10000)
-
 addLabel(pages[2], "— SHIFT LOCK —")
 addToggle(pages[2], "Shift Lock", "shiftLock", function(on)
-    local h = getHum()
-    if h then h.AutoRotate = not on end
+    local h = getHum() if h then h.AutoRotate = not on end
 end)
-addSelector(pages[2], "Режим", "shiftLockMode",
-    {"За камерой (стандарт)", "Фиксированный угол", "От камеры (спиной)"})
-addSlider(pages[2], "Угол поворота (градусы)", "shiftLockAngle", 0, 360)
-addSlider(pages[2], "Плавность (1 = мгновенно)", "shiftLockSmooth", 1, 20)
-addLabel(pages[2], "Поворачивает персонажа в направлении камеры + смещение угла.", 30)
-
-addLabel(pages[2], "— Хитбоксы врагов —")
+addSelector(pages[2], "Режим", "shiftLockMode", {"За камерой", "Фикс. угол", "Спиной"})
+addSlider(pages[2], "Угол (градусы)", "shiftLockAngle", 0, 360)
+addSlider(pages[2], "Плавность", "shiftLockSmooth", 1, 20)
+addLabel(pages[2], "— Хитбоксы —")
 addToggle(pages[2], "Расширить головы", "hitboxOn")
 addSlider(pages[2], "Множитель", "hitboxMul", 2, 50)
 
---// ---- Вкладка 3: Бой ----
 addLabel(pages[3], "— Автонаводка —")
-addToggle(pages[3], "Автонаводка (aimbot)", "aimbot")
-addSelector(pages[3], "Кнопка активации", "aimKey",
-    {"Правая мышь", "E", "Q", "Shift", "Всегда вкл"})
-addSelector(pages[3], "Часть тела", "aimPart",
-    {"Голова", "Torso", "HumanoidRootPart", "Ближайшая"})
-addSlider(pages[3], "Плавность (1 = мгновенно)", "aimSmooth", 1, 20)
-addSlider(pages[3], "Радиус наводки (пикс.)", "aimFov", 30, 800)
-addToggle(pages[3], "Кружок радиуса наводки", "aimDraw")
-addToggle(pages[3], "Игнорировать свою команду", "aimTeam")
+addToggle(pages[3], "Aimbot", "aimbot")
+addSelector(pages[3], "Кнопка", "aimKey", {"ПКМ", "E", "Q", "Shift", "Всегда"})
+addSelector(pages[3], "Часть", "aimPart", {"Head", "Torso", "HRP", "Ближайшая"})
+addSlider(pages[3], "Плавность", "aimSmooth", 1, 20)
+addSlider(pages[3], "Радиус (пикс.)", "aimFov", 30, 800)
+addToggle(pages[3], "Кружок", "aimDraw")
+addToggle(pages[3], "Игнор команды", "aimTeam")
 
-local aimTargetBtn
-local aimDropdownList
-local aimDropdownOpen = false
-
+local aimTargetBtn, aimDropdownList, aimDropdownOpen = nil, nil, false
 local function refreshAimDropdown()
     if not aimDropdownList then return end
     for _, c in ipairs(aimDropdownList:GetChildren()) do
@@ -904,7 +919,7 @@ local function refreshAimDropdown()
     local autoBtn = Instance.new("TextButton")
     autoBtn.Size = UDim2.new(1, 0, 0, 26)
     autoBtn.BackgroundColor3 = C_PANEL
-    autoBtn.Text = "Авто (ближайший к прицелу)"
+    autoBtn.Text = "Авто (ближайший)"
     autoBtn.TextColor3 = (cfg.aimTarget == "") and C_GREEN or C_WHITE
     autoBtn.Font = Enum.Font.Gotham
     autoBtn.TextSize = 13
@@ -926,7 +941,7 @@ local function refreshAimDropdown()
             local b = Instance.new("TextButton")
             b.Size = UDim2.new(1, 0, 0, 26)
             b.BackgroundColor3 = C_PANEL
-            b.Text = plr.Name .. (plr.Team and (" [" .. plr.Team.Name .. "]") or "")
+            b.Text = plr.Name
             b.TextColor3 = (cfg.aimTarget == plr.Name) and C_GREEN or C_WHITE
             b.Font = Enum.Font.Gotham
             b.TextSize = 13
@@ -947,7 +962,6 @@ local function refreshAimDropdown()
     end
     aimDropdownList.CanvasSize = UDim2.new(0, 0, 0, count * 28 + 4)
 end
-
 aimTargetBtn = addButton(pages[3], "Цель: Авто", function()
     if not aimDropdownList then
         aimDropdownList = Instance.new("ScrollingFrame")
@@ -969,74 +983,50 @@ aimTargetBtn = addButton(pages[3], "Цель: Авто", function()
     end
     aimDropdownOpen = not aimDropdownOpen
     aimDropdownList.Visible = aimDropdownOpen
-    if aimDropdownOpen then
-        refreshAimDropdown()
-    end
+    if aimDropdownOpen then refreshAimDropdown() end
 end)
 
-addLabel(pages[3], "— Флинг (только цель) —")
+addLabel(pages[3], "— Флинг —")
 addToggle(pages[3], "Флинг", "flingOn")
-addSlider(pages[3], "Сила (1 = 671, 1000 = 671488)", "flingPower", 1, 1000)
-addSelector(pages[3], "Режим", "flingMode",
-    {"Всех рядом", "Только выбранную цель"})
-addSlider(pages[3], "Радиус касания (студы)", "flingRange", 1, 20)
-
+addSlider(pages[3], "Сила (1=671, 1000=671488)", "flingPower", 1, 1000)
+addSelector(pages[3], "Режим", "flingMode", {"Всех", "Цель"})
+addSlider(pages[3], "Радиус", "flingRange", 1, 20)
 addLabel(pages[3], "— Уворот —")
 addToggle(pages[3], "Уворот", "dodgeOn")
-addSelector(pages[3], "Кнопка уворота", "dodgeKey",
-    {"Space + Shift", "Q", "E", "C"})
-addSlider(pages[3], "Сила уворота", "dodgeSpeed", 20, 300)
-addSlider(pages[3], "Дистанция проверки", "dodgeDist", 3, 50)
+addSelector(pages[3], "Кнопка", "dodgeKey", {"Space+Shift", "Q", "E", "C"})
+addSlider(pages[3], "Сила", "dodgeSpeed", 20, 300)
+addSlider(pages[3], "Дистанция", "dodgeDist", 3, 50)
 
---// ---- Вкладка 4: HvH ----
-addLabel(pages[4], "— HvH режим —")
-addToggle(pages[4], "HvH (поворот к врагу)", "hvhOn", function(on)
-    local h = getHum()
-    if h then h.AutoRotate = not on end
+addLabel(pages[4], "— HvH —")
+addToggle(pages[4], "HvH", "hvhOn", function(on)
+    local h = getHum() if h then h.AutoRotate = not on end
 end)
-addSelector(pages[4], "Режим", "hvhMode",
-    {"Спиной к врагу", "Лицом к врагу", "Боком (90°)", "Боком (-90°)"})
-addSlider(pages[4], "Дистанция поиска врага", "hvhRange", 5, 300)
-addSlider(pages[4], "Плавность (1 = мгновенно)", "hvhSmooth", 1, 30)
-addLabel(pages[4], "Автоматически поворачивает персонажа относительно ближайшего врага.", 30)
-
-addLabel(pages[4], "— Комбо HvH —")
+addSelector(pages[4], "Режим", "hvhMode", {"Спиной", "Лицом", "Боком +90", "Боком -90"})
+addSlider(pages[4], "Дистанция", "hvhRange", 5, 300)
+addSlider(pages[4], "Плавность", "hvhSmooth", 1, 30)
 addButton(pages[4], "Включить всё для HvH", function()
-    cfg.hvhOn = true
-    cfg.aimbot = true
-    cfg.aimKey = 5
-    cfg.aimPart = 1
-    cfg.hitboxOn = true
-    cfg.hitboxMul = 15
-    cfg.flingOn = true
-    cfg.flingPower = 500
+    cfg.hvhOn = true cfg.aimbot = true cfg.aimKey = 5 cfg.aimPart = 1
+    cfg.hitboxOn = true cfg.hitboxMul = 15 cfg.flingOn = true cfg.flingPower = 500
     for _, f in ipairs(uiRefresh) do f() end
     save()
 end)
 addButton(pages[4], "Выключить HvH", function()
-    cfg.hvhOn = false
-    cfg.flingOn = false
-    cfg.hitboxOn = false
-    local h = getHum()
-    if h then h.AutoRotate = true end
+    cfg.hvhOn = false cfg.flingOn = false cfg.hitboxOn = false
+    local h = getHum() if h then h.AutoRotate = true end
     for _, f in ipairs(uiRefresh) do f() end
     save()
 end)
 
---// ---- Вкладка 5: Защита ----
 addToggle(pages[5], "Неприкосайка", "ghost")
-addSlider(pages[5], "Высота хитбокса, студы", "ghostHeight", 200, 1000)
+addSlider(pages[5], "Высота", "ghostHeight", 200, 1000)
 addToggle(pages[5], "Антителепорт", "antiTp")
-addSlider(pages[5], "Порог телепорта, студы", "antiTpDist", 10, 200)
+addSlider(pages[5], "Порог", "antiTpDist", 10, 200)
 
---// ---- Вкладка 6: Движение ----
 local function tpButton(text, fn)
-    local b
-    b = addButton(pages[6], text, function()
+    local b = addButton(pages[6], text, function()
         if not fn() then flash(b, "Не получилось") end
     end)
 end
-
 tpButton("1. ТП вперёд на 5", function() return tpOffset(0, 0, -5) end)
 tpButton("2. ТП вперёд на 10", function() return tpOffset(0, 0, -10) end)
 tpButton("3. ТП вперёд на 25", function() return tpOffset(0, 0, -25) end)
@@ -1044,100 +1034,77 @@ tpButton("4. ТП назад на 10", function() return tpOffset(0, 0, 10) end)
 tpButton("5. ТП влево на 10", function() return tpOffset(-10, 0, 0) end)
 tpButton("6. ТП вправо на 10", function() return tpOffset(10, 0, 0) end)
 tpButton("7. ТП вверх на 20", function() return tpOffset(0, 20, 0, true) end)
-tpButton("8. ТП к ближайшему игроку", tpNearest)
+tpButton("8. ТП к игроку", tpNearest)
 tpButton("9. ТП на спавн", tpSpawn)
-addToggle(pages[6], "10. Полёт", "fly")
+addToggle(pages[6], "Полёт", "fly")
 addSlider(pages[6], "Скорость полёта", "flySpeed", 10, 60000)
-addToggle(pages[6], "11. Ноуклип", "noclip", function(on)
-    if not on then noclipRestore() end
-end)
-addToggle(pages[6], "12. Бесконечный прыжок", "infJump")
-addToggle(pages[6], "13. Авто-прыжок (bhop)", "bhop")
-addToggle(pages[6], "14. Своя гравитация", "gravityOn", function(on)
+addToggle(pages[6], "Ноуклип", "noclip", function(on) if not on then noclipRestore() end end)
+addToggle(pages[6], "Inf Jump", "infJump")
+addToggle(pages[6], "Bhop", "bhop")
+addToggle(pages[6], "Своя гравитация", "gravityOn", function(on)
     if not on then pcall(function() workspace.Gravity = 196.2 end) end
 end)
 addSlider(pages[6], "Гравитация", "gravityValue", 0, 500)
-addToggle(pages[6], "15. ТП куда смотрю", "tpLook")
-addToggle(pages[6], "16. ТП по клику мыши", "clickTp")
-
-addLabel(pages[6], "— Точка телепорта —")
-local savePointBtn = addButton(pages[6], "Сохранить точку здесь", function()
+addToggle(pages[6], "ТП куда смотрю", "tpLook")
+addToggle(pages[6], "ТП по клику", "clickTp")
+addLabel(pages[6], "— Точка ТП —")
+local savePointBtn = addButton(pages[6], "Сохранить точку", function()
     local hrp = getHRP()
     if hrp then
         cfg.savedX = math.floor(hrp.Position.X + 0.5)
         cfg.savedY = math.floor(hrp.Position.Y + 0.5)
         cfg.savedZ = math.floor(hrp.Position.Z + 0.5)
         save()
-        flash(savePointBtn, string.format("Сохранено: %d, %d, %d", cfg.savedX, cfg.savedY, cfg.savedZ))
+        flash(savePointBtn, string.format("%d,%d,%d", cfg.savedX, cfg.savedY, cfg.savedZ))
     end
 end)
 local tpPointBtn = addButton(pages[6], "ТП на точку", function()
-    local hrp = prepTp()
-    if hrp then
+    if prepTp() then
         teleportTo(CFrame.new(cfg.savedX, cfg.savedY + 3, cfg.savedZ))
-        flash(tpPointBtn, "Телепорт!")
+        flash(tpPointBtn, "ТП!")
     end
 end)
-addToggle(pages[6], "Телепорт к точке (авто)", "tpToPoint")
-
+addToggle(pages[6], "ТП к точке (авто)", "tpToPoint")
 local pointInfo = addLabel(pages[6], "", 24)
 uiRefresh[#uiRefresh + 1] = function()
     pointInfo.Text = string.format("Точка: %d, %d, %d", cfg.savedX, cfg.savedY, cfg.savedZ)
 end
 pointInfo.Text = string.format("Точка: %d, %d, %d", cfg.savedX, cfg.savedY, cfg.savedZ)
 
---// ---- Вкладка 7: Внешка ----
 addLabel(pages[7], "— Музыка —")
-addToggle(pages[7], "Играть музыку", "musicOn")
-addTextInput(pages[7], "ID трека", "musicId", "1837879082")
-addSlider(pages[7], "Громкость (0-10)", "musicVol", 0, 10)
+addToggle(pages[7], "Играть", "musicOn")
+addTextInput(pages[7], "ID", "musicId", "1837879082")
+addSlider(pages[7], "Громкость", "musicVol", 0, 10)
 addSlider(pages[7], "Скорость", "musicSpeed", 1, 5)
-addSlider(pages[7], "Тон (питч)", "musicPitch", 1, 5)
 addToggle(pages[7], "Цикл", "musicLoop")
-addToggle(pages[7], "Локально (только я слышу)", "musicLocal")
-addButton(pages[7], "Перезапустить музыку", function()
-    stopMusic()
-    updateMusic()
-end)
-addLabel(pages[7], "Если музыка не играет — попробуй другой ID.", 30)
-
-addLabel(pages[7], "— Перекрас аксессуаров —")
-addToggle(pages[7], "Перекрасить аксессуары", "accRecolor")
+addToggle(pages[7], "Локально", "musicLocal")
+addButton(pages[7], "Перезапустить", function() stopMusic() updateMusic() end)
+addLabel(pages[7], "— Аксессуары —")
+addToggle(pages[7], "Перекрас", "accRecolor")
 addSlider(pages[7], "R", "accR", 0, 255)
 addSlider(pages[7], "G", "accG", 0, 255)
 addSlider(pages[7], "B", "accB", 0, 255)
-addToggle(pages[7], "Неон (свечение)", "accNeon")
-
-addLabel(pages[7], "— Перекрас тела —")
-addToggle(pages[7], "Перекрасить тело", "bodyRecolor")
+addToggle(pages[7], "Неон", "accNeon")
+addLabel(pages[7], "— Тело —")
+addToggle(pages[7], "Перекрас", "bodyRecolor")
 addSlider(pages[7], "R", "bodyR", 0, 255)
 addSlider(pages[7], "G", "bodyG", 0, 255)
 addSlider(pages[7], "B", "bodyB", 0, 255)
 
---// ---- Вкладка 8: Ещё ----
-addButton(pages[8], "Переподключиться (rejoin)", function()
-    pcall(function()
-        game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-    end)
+addButton(pages[8], "Rejoin", function()
+    pcall(function() game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer) end)
 end)
 addButton(pages[8], "Копировать Job ID", function()
-    if setclipboard then
-        setclipboard(tostring(game.JobId))
-        print("[kotik_hub] Job ID: " .. game.JobId)
-    end
+    if setclipboard then setclipboard(tostring(game.JobId)) end
 end)
-addButton(pages[8], "Копировать мою позицию", function()
+addButton(pages[8], "Копировать позицию", function()
     local hrp = getHRP()
     if hrp and setclipboard then
-        local p = hrp.Position
-        local s = string.format("%d, %d, %d", p.X, p.Y, p.Z)
-        setclipboard(s)
-        print("[kotik_hub] Pos: " .. s)
+        setclipboard(string.format("%d, %d, %d", hrp.Position.X, hrp.Position.Y, hrp.Position.Z))
     end
 end)
-addButton(pages[8], "Убить себя (reset)", function()
-    local h = getHum()
-    if h then h.Health = 0 end
+addButton(pages[8], "Убить себя", function()
+    local h = getHum() if h then h.Health = 0 end
 end)
 addButton(pages[8], "Сбросить настройки", function()
     for k, v in pairs(DEFAULTS) do
@@ -1146,48 +1113,31 @@ addButton(pages[8], "Сбросить настройки", function()
         end
     end
     stopMusic()
-    for part, orig in pairs(bodyOrigColor) do
-        if part.Parent then part.Color = orig end
-    end
-    bodyOrigColor = {}
-    bodyOrigMat = {}
+    for part, orig in pairs(bodyOrigColor) do if part.Parent then part.Color = orig end end
+    bodyOrigColor = {} bodyOrigMat = {}
     restore()
     for _, f in ipairs(uiRefresh) do f() end
     save()
 end)
 local unloadRef
-addButton(pages[8], "Выгрузить скрипт", function() if unloadRef then unloadRef() end end)
-addLabel(pages[8], "RightShift — меню. Файл настроек: kotik_hub.json", 30)
+addButton(pages[8], "Выгрузить", function() if unloadRef then unloadRef() end end)
+addLabel(pages[8], "RightShift — меню.", 30)
 
 setTab(math.clamp(cfg.tab, 1, #tabNames))
 
---// ---- кнопка-фото ----
-local toggleBtn = Instance.new("ImageButton")
+--// ---- кнопка-фото (улыбашка) ----
+local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0, 56, 0, 56)
 toggleBtn.Position = UDim2.new(0, 10, 0.5, -28)
 toggleBtn.BackgroundColor3 = C_BG
+toggleBtn.Text = "☺"
+toggleBtn.TextColor3 = C_GREEN
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 32
 toggleBtn.BorderSizePixel = 0
-toggleBtn.ScaleType = Enum.ScaleType.Crop
 toggleBtn.Parent = gui
 corner(toggleBtn, 28)
 stroke(toggleBtn)
-
-local img = IMAGE_ID
-pcall(function()
-    if getcustomasset and isfile and isfile(IMAGE_FILE) then img = getcustomasset(IMAGE_FILE) end
-end)
-if img ~= "" then
-    toggleBtn.Image = img
-else
-    local k = Instance.new("TextLabel")
-    k.Size = UDim2.new(1, 0, 1, 0)
-    k.BackgroundTransparency = 1
-    k.Text = "K"
-    k.TextColor3 = C_WHITE
-    k.Font = Enum.Font.GothamBold
-    k.TextSize = 22
-    k.Parent = toggleBtn
-end
 makeDraggable(toggleBtn, toggleBtn, function() setMenu(not main.Visible) end)
 
 bind(UIS.InputBegan, function(i, gp)
@@ -1196,17 +1146,12 @@ end)
 
 --// ============ МУЗЫКА ============
 local musicSound
-
 local function stopMusic()
     if musicSound then
-        pcall(function()
-            musicSound:Stop()
-            musicSound:Destroy()
-        end)
+        pcall(function() musicSound:Stop() musicSound:Destroy() end)
         musicSound = nil
     end
 end
-
 local function updateMusic()
     if not cfg.musicOn then
         if musicSound then stopMusic() end
@@ -1225,9 +1170,7 @@ local function updateMusic()
         musicSound.PlaybackSpeed = cfg.musicSpeed
         musicSound:Play()
     else
-        if musicSound.Parent ~= desiredParent then
-            musicSound.Parent = desiredParent
-        end
+        if musicSound.Parent ~= desiredParent then musicSound.Parent = desiredParent end
         local newId = "rbxassetid://" .. id
         if musicSound.SoundId ~= newId then
             musicSound.SoundId = newId
@@ -1236,16 +1179,13 @@ local function updateMusic()
         musicSound.Looped = cfg.musicLoop
         musicSound.Volume = cfg.musicVol / 10
         musicSound.PlaybackSpeed = cfg.musicSpeed
-        if not musicSound.IsPlaying then
-            pcall(function() musicSound:Play() end)
-        end
+        if not musicSound.IsPlaying then pcall(function() musicSound:Play() end) end
     end
 end
 
---// ============ ПЕРЕКРАС АКСЕССУАРОВ ============
+--// ============ ПЕРЕКРАС ============
 local accOrigColor = {}
 local accOrigMat = {}
-
 local function updateAccessories()
     local char = getChar()
     if not char then return end
@@ -1260,13 +1200,11 @@ local function updateAccessories()
                         end
                         p.Color = Color3.fromRGB(cfg.accR, cfg.accG, cfg.accB)
                         p.Material = cfg.accNeon and Enum.Material.Neon or Enum.Material.SmoothPlastic
-                    else
-                        if accOrigColor[p] then
-                            p.Color = accOrigColor[p]
-                            p.Material = accOrigMat[p] or Enum.Material.SmoothPlastic
-                            accOrigColor[p] = nil
-                            accOrigMat[p] = nil
-                        end
+                    elseif accOrigColor[p] then
+                        p.Color = accOrigColor[p]
+                        p.Material = accOrigMat[p] or Enum.Material.SmoothPlastic
+                        accOrigColor[p] = nil
+                        accOrigMat[p] = nil
                     end
                 end
             end
@@ -1274,22 +1212,18 @@ local function updateAccessories()
     end
 end
 
---// ============ ПЕРЕКРАС ТЕЛА ============
 local function updateBodyColor()
     local char = getChar()
     if not char then return end
     for _, d in ipairs(char:GetDescendants()) do
         if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" then
-            local isAccessory = false
+            local isAcc = false
             local parent = d.Parent
             while parent and parent ~= char do
-                if parent:IsA("Accessory") or parent:IsA("Hat") then
-                    isAccessory = true
-                    break
-                end
+                if parent:IsA("Accessory") or parent:IsA("Hat") then isAcc = true break end
                 parent = parent.Parent
             end
-            if not isAccessory then
+            if not isAcc then
                 if cfg.bodyRecolor then
                     if bodyOrigColor[d] == nil then
                         bodyOrigColor[d] = d.Color
@@ -1297,13 +1231,11 @@ local function updateBodyColor()
                     end
                     d.Color = Color3.fromRGB(cfg.bodyR, cfg.bodyG, cfg.bodyB)
                     d.Material = Enum.Material.Neon
-                else
-                    if bodyOrigColor[d] then
-                        d.Color = bodyOrigColor[d]
-                        d.Material = bodyOrigMat[d] or Enum.Material.Plastic
-                        bodyOrigColor[d] = nil
-                        bodyOrigMat[d] = nil
-                    end
+                elseif bodyOrigColor[d] then
+                    d.Color = bodyOrigColor[d]
+                    d.Material = bodyOrigMat[d] or Enum.Material.Plastic
+                    bodyOrigColor[d] = nil
+                    bodyOrigMat[d] = nil
                 end
             end
         end
@@ -1312,35 +1244,27 @@ end
 
 --// ============ SHIFT LOCK ============
 local shiftLockCurrent = nil
-
 local function updateShiftLock()
-    if not cfg.shiftLock then
-        shiftLockCurrent = nil
-        return
-    end
+    if not cfg.shiftLock then shiftLockCurrent = nil return end
     local hrp, h = getHRP(), getHum()
     if not hrp or not h then return end
     h.AutoRotate = false
-
-    local camLook = workspace.CurrentCamera.CFrame.LookVector
+    local camLook = Camera.CFrame.LookVector
     local targetAngle
     if cfg.shiftLockMode == 1 then
         targetAngle = math.atan2(-camLook.X, -camLook.Z)
     elseif cfg.shiftLockMode == 2 then
-        local camAngle = math.atan2(-camLook.X, -camLook.Z)
-        targetAngle = camAngle + math.rad(cfg.shiftLockAngle)
+        targetAngle = math.atan2(-camLook.X, -camLook.Z) + math.rad(cfg.shiftLockAngle)
     elseif cfg.shiftLockMode == 3 then
-        local camAngle = math.atan2(-camLook.X, -camLook.Z)
-        targetAngle = camAngle + math.pi
+        targetAngle = math.atan2(-camLook.X, -camLook.Z) + math.pi
     end
     if targetAngle then
-        local targetY = targetAngle
-        local currentY = shiftLockCurrent or math.atan2(-hrp.CFrame.LookVector.X, -hrp.CFrame.LookVector.Z)
-        local diff = targetY - currentY
+        local current = shiftLockCurrent or math.atan2(-hrp.CFrame.LookVector.X, -hrp.CFrame.LookVector.Z)
+        local diff = targetAngle - current
         while diff > math.pi do diff = diff - 2 * math.pi end
         while diff < -math.pi do diff = diff + 2 * math.pi end
         local smooth = math.max(1, cfg.shiftLockSmooth)
-        local newY = currentY + diff / smooth
+        local newY = current + diff / smooth
         shiftLockCurrent = newY
         hrp.CFrame = CFrame.new(hrp.CFrame.Position) * CFrame.Angles(0, newY, 0)
     end
@@ -1348,12 +1272,8 @@ end
 
 --// ============ HvH ============
 local hvhCurrentAngle = nil
-
 local function updateHvH()
-    if not cfg.hvhOn then
-        hvhCurrentAngle = nil
-        return
-    end
+    if not cfg.hvhOn then hvhCurrentAngle = nil return end
     local hrp, h = getHRP(), getHum()
     if not hrp or not h then return end
     h.AutoRotate = false
@@ -1375,13 +1295,10 @@ local function updateHvH()
         end
     end
     if not nearest or nearestD > cfg.hvhRange then return end
-    local dirToEnemy = nearest.Position - myPos
-    local angleToEnemy = math.atan2(-dirToEnemy.X, -dirToEnemy.Z)
+    local angleToEnemy = math.atan2(-(nearest.Position.X - myPos.X), -(nearest.Position.Z - myPos.Z))
     local targetAngle = angleToEnemy
     if cfg.hvhMode == 1 then
         targetAngle = angleToEnemy + math.pi
-    elseif cfg.hvhMode == 2 then
-        targetAngle = angleToEnemy
     elseif cfg.hvhMode == 3 then
         targetAngle = angleToEnemy + math.pi / 2
     elseif cfg.hvhMode == 4 then
@@ -1409,7 +1326,6 @@ local R6 = {
     {"Head", "Torso"}, {"Torso", "Left Arm"}, {"Torso", "Right Arm"},
     {"Torso", "Left Leg"}, {"Torso", "Right Leg"},
 }
-
 local hasDrawing = (Drawing ~= nil and Drawing.new ~= nil)
 local drawings = {}
 
@@ -1450,13 +1366,11 @@ local function getBox2D(char)
     for ix = -1, 1, 2 do
         for iy = -1, 1, 2 do
             for iz = -1, 1, 2 do
-                local corner3 = cf * Vector3.new(size.X / 2 * ix, size.Y / 2 * iy, size.Z / 2 * iz)
-                local p = Camera:WorldToViewportPoint(corner3)
+                local c3 = cf * Vector3.new(size.X / 2 * ix, size.Y / 2 * iy, size.Z / 2 * iz)
+                local p = Camera:WorldToViewportPoint(c3)
                 if p.Z <= 0 then return nil end
-                minX = math.min(minX, p.X)
-                minY = math.min(minY, p.Y)
-                maxX = math.max(maxX, p.X)
-                maxY = math.max(maxY, p.Y)
+                minX = math.min(minX, p.X) minY = math.min(minY, p.Y)
+                maxX = math.max(maxX, p.X) maxY = math.max(maxY, p.Y)
             end
         end
     end
@@ -1477,7 +1391,6 @@ local function updateESP()
                 if cfg.espTeam and LocalPlayer.Team then
                     color = (plr.Team == LocalPlayer.Team) and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 50, 50)
                 end
-
                 if cfg.esp then
                     local bones = char:FindFirstChild("UpperTorso") and R15 or R6
                     for idx, pair in ipairs(bones) do
@@ -1507,7 +1420,6 @@ local function updateESP()
                 else
                     for _, l in ipairs(t.lines) do l.Visible = false end
                 end
-
                 if cfg.espBox then
                     if not t.box then
                         local sq = Drawing.new("Square")
@@ -1527,7 +1439,6 @@ local function updateESP()
                 elseif t.box then
                     t.box.Visible = false
                 end
-
                 if cfg.espName then
                     if not t.text then
                         local tx = Drawing.new("Text")
@@ -1553,7 +1464,6 @@ local function updateESP()
                 elseif t.text then
                     t.text.Visible = false
                 end
-
                 if cfg.espTracer then
                     if not t.tracer then
                         t.tracer = Drawing.new("Line")
@@ -1577,7 +1487,6 @@ local function updateESP()
                 elseif t.tracer then
                     t.tracer.Visible = false
                 end
-
                 if cfg.espDist then
                     if not t.dist then
                         t.dist = Drawing.new("Text")
@@ -1589,8 +1498,7 @@ local function updateESP()
                     if head and myHRP then
                         local p, v = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 2.5, 0))
                         if v then
-                            local d = (head.Position - myHRP.Position).Magnitude
-                            t.dist.Text = string.format("[%d studs]", math.floor(d))
+                            t.dist.Text = string.format("[%d studs]", math.floor((head.Position - myHRP.Position).Magnitude))
                             t.dist.Position = Vector2.new(p.X, p.Y)
                             t.dist.Color = color
                             t.dist.Visible = true
@@ -1629,15 +1537,13 @@ local function updateHitboxes()
                         head.CanCollide = false
                         head.Massless = true
                     end
-                else
-                    if head:GetAttribute("kotik_origSize") then
-                        head.Size = head:GetAttribute("kotik_origSize")
-                        head.Transparency = head:GetAttribute("kotik_origTrans") or 0
-                        head.CanCollide = true
-                        head.Massless = false
-                        head:SetAttribute("kotik_origSize", nil)
-                        head:SetAttribute("kotik_origTrans", nil)
-                    end
+                elseif head:GetAttribute("kotik_origSize") then
+                    head.Size = head:GetAttribute("kotik_origSize")
+                    head.Transparency = head:GetAttribute("kotik_origTrans") or 0
+                    head.CanCollide = true
+                    head.Massless = false
+                    head:SetAttribute("kotik_origSize", nil)
+                    head:SetAttribute("kotik_origTrans", nil)
                 end
             end
         end
@@ -1649,7 +1555,7 @@ local aimCircle
 if hasDrawing then
     aimCircle = Drawing.new("Circle")
     aimCircle.Thickness = 1
-    aimCircle.NumSides = 80
+    aimCircle.NumSides = 60
     aimCircle.Filled = false
     aimCircle.Color = Color3.fromRGB(255, 255, 255)
     aimCircle.Transparency = 0.7
@@ -1671,13 +1577,12 @@ local function getAimPartOf(plr)
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum or hum.Health <= 0 then return nil end
     if cfg.aimTeam and LocalPlayer.Team and plr.Team == LocalPlayer.Team then return nil end
-    if cfg.aimPart == 1 then
-        return char:FindFirstChild("Head")
-    elseif cfg.aimPart == 2 then
+    if cfg.aimPart == 1 then return char:FindFirstChild("Head") end
+    if cfg.aimPart == 2 then
         return char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("HumanoidRootPart")
-    elseif cfg.aimPart == 3 then
-        return char:FindFirstChild("HumanoidRootPart")
-    elseif cfg.aimPart == 4 then
+    end
+    if cfg.aimPart == 3 then return char:FindFirstChild("HumanoidRootPart") end
+    if cfg.aimPart == 4 then
         local center = Camera.ViewportSize / 2
         local best, bestD
         for _, name in ipairs({"Head", "Torso", "UpperTorso", "LowerTorso", "HumanoidRootPart"}) do
@@ -1755,12 +1660,8 @@ local function updateFling()
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
             local allowed = true
-            if cfg.flingMode == 2 and cfg.aimTarget ~= "" and plr.Name ~= cfg.aimTarget then
-                allowed = false
-            end
-            if cfg.aimTeam and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
-                allowed = false
-            end
+            if cfg.flingMode == 2 and cfg.aimTarget ~= "" and plr.Name ~= cfg.aimTarget then allowed = false end
+            if cfg.aimTeam and LocalPlayer.Team and plr.Team == LocalPlayer.Team then allowed = false end
             if allowed then
                 local char = plr.Character
                 local targetHRP = char and char:FindFirstChild("HumanoidRootPart")
@@ -1774,13 +1675,9 @@ local function updateFling()
                         end
                     end
                     if bestD <= range then
-                        pcall(function()
-                            targetHRP:SetNetworkOwner(LocalPlayer)
-                        end)
+                        pcall(function() targetHRP:SetNetworkOwner(LocalPlayer) end)
                         local dir = targetHRP.Position - myPos
-                        if dir.Magnitude < 0.5 then
-                            dir = workspace.CurrentCamera.CFrame.LookVector
-                        end
+                        if dir.Magnitude < 0.5 then dir = Camera.CFrame.LookVector end
                         dir = dir.Unit
                         targetHRP.AssemblyLinearVelocity = dir * power
                         targetHRP.AssemblyAngularVelocity = Vector3.new(
@@ -1799,37 +1696,27 @@ end
 
 --// ============ УВОРОТ ============
 local function isDodgeKeyDown()
-    if cfg.dodgeKey == 1 then
-        return UIS:IsKeyDown(Enum.KeyCode.Space) and UIS:IsKeyDown(Enum.KeyCode.LeftShift)
-    elseif cfg.dodgeKey == 2 then
-        return UIS:IsKeyDown(Enum.KeyCode.Q)
-    elseif cfg.dodgeKey == 3 then
-        return UIS:IsKeyDown(Enum.KeyCode.E)
-    elseif cfg.dodgeKey == 4 then
-        return UIS:IsKeyDown(Enum.KeyCode.C)
-    end
+    if cfg.dodgeKey == 1 then return UIS:IsKeyDown(Enum.KeyCode.Space) and UIS:IsKeyDown(Enum.KeyCode.LeftShift) end
+    if cfg.dodgeKey == 2 then return UIS:IsKeyDown(Enum.KeyCode.Q) end
+    if cfg.dodgeKey == 3 then return UIS:IsKeyDown(Enum.KeyCode.E) end
+    if cfg.dodgeKey == 4 then return UIS:IsKeyDown(Enum.KeyCode.C) end
     return false
 end
 
 local function updateDodge()
-    if not cfg.dodgeOn then return end
-    if not isDodgeKeyDown() then return end
+    if not cfg.dodgeOn or not isDodgeKeyDown() then return end
     local myHRP = getHRP()
     if not myHRP then return end
     local myPos = myHRP.Position
     local nearest, nearestD
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            if not (cfg.aimTeam and LocalPlayer.Team and plr.Team == LocalPlayer.Team) then
-                local char = plr.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                local hum = char and char:FindFirstChildOfClass("Humanoid")
-                if hrp and hum and hum.Health > 0 then
-                    local d = (hrp.Position - myPos).Magnitude
-                    if not nearestD or d < nearestD then
-                        nearest, nearestD = hrp, d
-                    end
-                end
+        if plr ~= LocalPlayer and not (cfg.aimTeam and LocalPlayer.Team and plr.Team == LocalPlayer.Team) then
+            local char = plr.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hrp and hum and hum.Health > 0 then
+                local d = (hrp.Position - myPos).Magnitude
+                if not nearestD or d < nearestD then nearest, nearestD = hrp, d end
             end
         end
     end
@@ -1837,15 +1724,9 @@ local function updateDodge()
     if nearest and nearestD <= cfg.dodgeDist then
         local away = myPos - nearest.Position
         away = Vector3.new(away.X, 0, away.Z)
-        if away.Magnitude > 0.01 then
-            away = away.Unit
-        else
-            away = Vector3.new(1, 0, 0)
-        end
-        dodgeDir = away
+        dodgeDir = away.Magnitude > 0.01 and away.Unit or Vector3.new(1, 0, 0)
     else
-        local cam = workspace.CurrentCamera
-        dodgeDir = cam.CFrame.RightVector
+        dodgeDir = Camera.CFrame.RightVector
         dodgeDir = Vector3.new(dodgeDir.X, 0, dodgeDir.Z).Unit
     end
     myHRP.AssemblyLinearVelocity = dodgeDir * cfg.dodgeSpeed + Vector3.new(0, myHRP.AssemblyLinearVelocity.Y, 0)
@@ -1874,14 +1755,12 @@ ghostRestore = function()
         ghostPart, ghostCF = nil, nil
     end
 end
-
 RunService:BindToRenderStep("kotik_ghost_restore", Enum.RenderPriority.First.Value, ghostRestore)
-
 RunService:BindToRenderStep("kotik_ghost_cam", Enum.RenderPriority.Camera.Value + 1, function()
     if not cfg.ghost then return end
     local hrp = getHRP()
     if not hrp then return end
-    local cam = workspace.CurrentCamera
+    local cam = Camera
     if cam.CFrame.Position.Y - hrp.Position.Y > cfg.ghostHeight * 0.8 then
         cam.CFrame = cam.CFrame - Vector3.new(0, cfg.ghostHeight, 0)
     end
@@ -1911,25 +1790,16 @@ bind(RunService.RenderStepped, function()
         Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
         Lighting.Brightness = 3
     end
-    if cfg.clockTime then
-        pcall(function() Lighting.ClockTime = cfg.timeValue end)
-    end
+    if cfg.clockTime then pcall(function() Lighting.ClockTime = cfg.timeValue end) end
     if cfg.fogOff then
         Lighting.FogEnd = 9e9
         Lighting.FogStart = 9e9
     end
-    if cfg.fpsBoost and not fpsBoosted then
-        pcall(applyFpsBoost)
-    elseif not cfg.fpsBoost then
-        fpsBoosted = false
-    end
+    if cfg.fpsBoost and not fpsBoosted then pcall(applyFpsBoost) elseif not cfg.fpsBoost then fpsBoosted = false end
     local h = getHum()
     if h then
         if cfg.speedOn then h.WalkSpeed = cfg.speed end
-        if cfg.jumpOn then
-            h.UseJumpPower = true
-            h.JumpPower = cfg.jump
-        end
+        if cfg.jumpOn then h.UseJumpPower = true h.JumpPower = cfg.jump end
         if cfg.noAnim then
             local c = getChar()
             local a = c and c:FindFirstChild("Animate")
@@ -1954,21 +1824,14 @@ bind(RunService.Heartbeat, function()
     pcall(updateSpin)
     pcall(updateDodge)
     pcall(updateFling)
-    if cfg.hvhOn then
-        pcall(updateHvH)
-    elseif cfg.shiftLock then
-        pcall(updateShiftLock)
-    end
+    if cfg.hvhOn then pcall(updateHvH) elseif cfg.shiftLock then pcall(updateShiftLock) end
     if cfg.fly and h then
-        local cam = workspace.CurrentCamera
         local md = h.MoveDirection
         local vel = Vector3.new(0, 0, 0)
         if md.Magnitude > 0 then
-            local rel = cam.CFrame:VectorToObjectSpace(md)
-            vel = cam.CFrame.LookVector * (-rel.Z) + cam.CFrame.RightVector * rel.X
-            if vel.Magnitude > 0 then
-                vel = vel.Unit * cfg.flySpeed * math.min(1, md.Magnitude)
-            end
+            local rel = Camera.CFrame:VectorToObjectSpace(md)
+            vel = Camera.CFrame.LookVector * (-rel.Z) + Camera.CFrame.RightVector * rel.X
+            if vel.Magnitude > 0 then vel = vel.Unit * cfg.flySpeed * math.min(1, md.Magnitude) end
         end
         if UIS:IsKeyDown(Enum.KeyCode.Space) then vel = vel + Vector3.new(0, cfg.flySpeed, 0) end
         if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then vel = vel - Vector3.new(0, cfg.flySpeed, 0) end
@@ -1979,19 +1842,14 @@ bind(RunService.Heartbeat, function()
             h:ChangeState(Enum.HumanoidStateType.Jumping)
         end
     end
-    if cfg.gravityOn then
-        pcall(function() workspace.Gravity = cfg.gravityValue end)
-    end
+    if cfg.gravityOn then pcall(function() workspace.Gravity = cfg.gravityValue end) end
     if cfg.tpLook then
-        local cam = workspace.CurrentCamera
-        local target = cam.CFrame.Position + cam.CFrame.LookVector * 30
+        local target = Camera.CFrame.Position + Camera.CFrame.LookVector * 30
         teleportTo(CFrame.new(target))
     end
     if cfg.tpToPoint then
         local target = Vector3.new(cfg.savedX, cfg.savedY + 3, cfg.savedZ)
-        if (hrp.Position - target).Magnitude > 3 then
-            teleportTo(CFrame.new(target))
-        end
+        if (hrp.Position - target).Magnitude > 3 then teleportTo(CFrame.new(target)) end
     end
     if cfg.ghost and not ghostPart then
         ghostPart = hrp
@@ -2010,14 +1868,12 @@ end)
 bind(UIS.InputBegan, function(i, gp)
     if gp then return end
     if cfg.clickTp and i.UserInputType == Enum.UserInputType.MouseButton1 then
-        local guiObjs = gui:GetGuiObjectsAtPosition(i.Position.X, i.Position.Y)
-        if #guiObjs > 0 then return end
-        local unitRay = workspace.CurrentCamera:ScreenPointToRay(i.Position.X, i.Position.Y)
+        local objs = gui:GetGuiObjectsAtPosition(i.Position.X, i.Position.Y)
+        if #objs > 0 then return end
+        local unitRay = Camera:ScreenPointToRay(i.Position.X, i.Position.Y)
         local ray = Ray.new(unitRay.Origin, unitRay.Direction * 1000)
         local hit, pos = workspace:FindPartOnRay(ray, getChar())
-        if pos then
-            teleportTo(CFrame.new(pos + Vector3.new(0, 3, 0)))
-        end
+        if pos then teleportTo(CFrame.new(pos + Vector3.new(0, 3, 0))) end
     end
 end)
 
@@ -2028,9 +1884,7 @@ local function hookFastRespawn(plr)
         hum.Died:Connect(function()
             if cfg.fastRespawn then
                 task.wait(0.05)
-                pcall(function()
-                    LocalPlayer:LoadCharacter()
-                end)
+                pcall(function() LocalPlayer:LoadCharacter() end)
             end
         end)
     end
@@ -2101,6 +1955,8 @@ local function unload()
     for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
     pcall(function() RunService:UnbindFromRenderStep("kotik_ghost_restore") end)
     pcall(function() RunService:UnbindFromRenderStep("kotik_ghost_cam") end)
+    if keyFloatConn then pcall(function() keyFloatConn:Disconnect() end) end
+    if menuFloatConn then pcall(function() menuFloatConn:Disconnect() end) end
     ghostRestore()
     stopMusic()
     if aimCircle then pcall(function() aimCircle:Remove() end) end
@@ -2116,9 +1972,7 @@ local function unload()
             end
         end
     end
-    for part, orig in pairs(bodyOrigColor) do
-        if part.Parent then part.Color = orig end
-    end
+    for part, orig in pairs(bodyOrigColor) do if part.Parent then part.Color = orig end end
     bodyOrigColor = {}
     bodyOrigMat = {}
     restore()
@@ -2128,4 +1982,4 @@ end
 unloadRef = unload
 env.kotik_unload = unload
 
-print("[kotik_hub v20] Загружен. RightShift — меню.")
+print("[kotik_hub v21] Загружен. RightShift — меню.")
